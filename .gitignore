@@ -1,0 +1,27 @@
+# Generic, system, text editors
+*~
+\#*\#
+_autosave-*
+*.bak
+/build/
+.DS_Store
+.idea/
+.~lock.*
+*.log
+__MACOSX/
+*.old
+*_old
+.*.swp
+*.tmp
+.vscode/
+
+# KiCad
+*-backups
+*-cache
+*.bak
+*.bck
+*.drl
+*.kicad_prl
+*.lck
+.history
+fab/

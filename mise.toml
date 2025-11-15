@@ -1,0 +1,8 @@
+[settings]
+experimental = true
+
+[hooks]
+postinstall = [
+  "git lfs install --local",
+  "git lfs pull",
+]
