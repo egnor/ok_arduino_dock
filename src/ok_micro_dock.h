@@ -10,5 +10,5 @@ enum OkMicroDockType {
 class OkLittleLayout;
 extern OkLittleLayout* ok_dock_screen;
 
-void ok_dock_init(OkMicroDockType dock_type);
+bool ok_dock_init(OkMicroDockType dock_type);
 bool ok_dock_button(int which);
