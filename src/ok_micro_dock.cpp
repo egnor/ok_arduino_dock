@@ -1,4 +1,6 @@
-#include "blub_station.h"
+#include "ok_micro_dock.h"
+
+#include <array>
 
 #include <Arduino.h>
 #include <ok_little_layout.h>
@@ -14,12 +16,12 @@ class DummyLayout : public OkLittleLayout {
     virtual u8g2_t* get_u8g2() const override { return nullptr; }
 };
 
-static OkDockType dock_type = OK_NO_DOCK;
+static OkMicroDockType dock_type = OK_NO_DOCK;
 static bool buttons_ok = false;
 
 static u8g2_t screen_driver;
 static DummyLayout dummy_layout;
-OkLittleLayout* ok_dock_screen = &dummy_layout;
+OkLittleLayout* ok_micro_dock_screen = &dummy_layout;
 
 static bool i2c_wr(uint8_t addr, std::initializer_list<int> bytes) {
   Wire.beginTransmission(addr);
@@ -30,7 +32,7 @@ static bool i2c_wr(uint8_t addr, std::initializer_list<int> bytes) {
 }
 
 static uint8_t i2c_wr_rd(uint8_t addr, std::initializer_list<int> w) {
-  wbytes(i2c, addr, w);
+  i2c_wr(addr, w);
   Wire.requestFrom(addr, 1);
   if (Wire.available() < 1) OK_ERROR("I2C(0x%02X) read failed (no data)", addr);
   return Wire.read();
@@ -49,7 +51,7 @@ static bool init_feather_v8() {
   if (gpio_i2c_status != 0) {
     OK_ERROR("I2C error %d for GPIO (0x%x)", gpio_i2c_status, gpio_i2c);
   } else {
-    OK_DEBUG("Starting Feather dock button GPIO (I2C 0x%x)...", gpio_i2c);
+    OK_DETAIL("Starting Feather dock button GPIO (I2C 0x%x)...", gpio_i2c);
     uint8_t const id_byte = i2c_wr_rd(gpio_i2c, {0x01});
     if ((id_byte & ~0x02) != 0xA0) {
       OK_ERROR("Button GPIO (I2C 0x%x) ID 0x%02X != 0xA0", gpio_i2c, id_byte);
@@ -73,7 +75,7 @@ static bool init_feather_v8() {
   if (screen_i2c_status != 0) {
     OK_ERROR("I2C error %d for screen (0x%x)", screen_i2c_status, screen_i2c);
   } else {
-    OK_DEBUG("Starting Feather dock screen (I2C 0x%x)...", screen_i2c);
+    OK_DETAIL("Starting Feather dock screen (I2C 0x%x)...", screen_i2c);
     u8g2_Setup_ssd1306_i2c_128x64_noname_f(
         &screen_driver, U8G2_R0,
         u8x8_byte_arduino_hw_i2c, u8x8_gpio_and_delay_arduino
@@ -83,12 +85,15 @@ static bool init_feather_v8() {
     u8g2_SetI2CAddress(&screen_driver, screen_i2c << 1);
     u8g2_InitDisplay(&screen_driver);
     u8g2_SetPowerSave(&screen_driver, 0);
-    ok_dock_layout = new_ok_little_layout(&screen_driver);
-    ok_dock_layout->line_printf(0, "\f9Starting...");
+    ok_micro_dock_screen = new_ok_little_layout(&screen_driver);
+    ok_micro_dock_screen->line_printf(0, "\f9Starting...");
   }
+
+  OK_DETAIL("Feather dock setup complete");
+  return true;
 }
 
-bool ok_dock_init(OkMicroDockType type) {
+bool ok_micro_dock_init(OkMicroDockType type) {
   dock_type = type;
   if (type == OK_NO_DOCK) {
     OK_DETAIL("No dock hardware configured");
@@ -102,7 +107,7 @@ bool ok_dock_init(OkMicroDockType type) {
   }
 }
 
-bool ok_dock_button(int which) {
+bool ok_micro_dock_button(int which) {
   if (!buttons_ok) {
     return false;
   } else if (dock_type == OK_FEATHER_DOCK_V8) {
