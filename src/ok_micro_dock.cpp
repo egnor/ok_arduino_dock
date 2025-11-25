@@ -8,20 +8,13 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
-static const OkLoggingContext OK_CONTEXT("ok_micro_dock");
+static const OkLoggingContext OK_CONTEXT("ok_dock");
 
-class DummyLayout : public OkLittleLayout {
-  public:
-    virtual void line_printf(int line, char const* format, ...) override {}
-    virtual u8g2_t* get_u8g2() const override { return nullptr; }
-};
-
-static OkMicroDockType dock_type = OK_NO_DOCK;
+static OkDockType dock_type = OK_NO_DOCK;
 static bool buttons_ok = false;
 
-static u8g2_t screen_driver;
-static DummyLayout dummy_layout;
-OkLittleLayout* ok_micro_dock_screen = &dummy_layout;
+U8G2* ok_dock_screen = nullptr;
+OkLittleLayout* ok_dock_layout = nullptr;
 
 static bool i2c_wr(uint8_t addr, std::initializer_list<int> bytes) {
   Wire.beginTransmission(addr);
@@ -75,25 +68,21 @@ static bool init_feather_v8() {
   if (screen_i2c_status != 0) {
     OK_ERROR("I2C error %d for screen (0x%x)", screen_i2c_status, screen_i2c);
   } else {
-    OK_DETAIL("Starting Feather dock screen (I2C 0x%x)...", screen_i2c);
-    u8g2_Setup_ssd1306_i2c_128x64_noname_f(
-        &screen_driver, U8G2_R0,
-        u8x8_byte_arduino_hw_i2c, u8x8_gpio_and_delay_arduino
-    );
-
     // See https://github.com/olikraus/u8g2/issues/2425
-    u8g2_SetI2CAddress(&screen_driver, screen_i2c << 1);
-    u8g2_InitDisplay(&screen_driver);
-    u8g2_SetPowerSave(&screen_driver, 0);
-    ok_micro_dock_screen = new_ok_little_layout(&screen_driver);
-    ok_micro_dock_screen->line_printf(0, "\f9Starting...");
+    OK_DETAIL("Starting Feather dock screen (I2C 0x%x)...", screen_i2c);
+    ok_dock_screen = new U8G2_SSD1306_128x64_NONANE_F_HW_I2C(U8G2_R0);
+    ok_dock_screen->setI2CAddress(screen_i2c << 1);
+    ok_dock_screen->initDisplay();
+    ok_dock_screen->setPowerSave(0);
+    ok_dock_layout = new_ok_little_layout(u8g2.getU8x8());
+    ok_dock_layout->line_printf(0, "\f9Starting...");
   }
 
   OK_DETAIL("Feather dock setup complete");
   return true;
 }
 
-bool ok_micro_dock_init(OkMicroDockType type) {
+bool ok_dock_init(OkDockType type) {
   dock_type = type;
   if (type == OK_NO_DOCK) {
     OK_DETAIL("No dock hardware configured");
@@ -107,7 +96,7 @@ bool ok_micro_dock_init(OkMicroDockType type) {
   }
 }
 
-bool ok_micro_dock_button(int which) {
+bool ok_dock_button(int which) {
   if (!buttons_ok) {
     return false;
   } else if (dock_type == OK_FEATHER_DOCK_V8) {

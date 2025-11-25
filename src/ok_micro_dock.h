@@ -2,13 +2,16 @@
 
 #pragma once
 
-enum OkMicroDockType {
+class OkLittleLayout;
+class U8G2;
+
+enum OkDockType {
   OK_NO_DOCK,
   OK_FEATHER_DOCK_V8,
 };
 
-class OkLittleLayout;
-extern OkLittleLayout* ok_micro_dock_screen;
+extern U8G2* ok_dock_screen;
+extern OkLittleLayout* ok_dock_layout;
 
-bool ok_micro_dock_init(OkMicroDockType dock_type);
-bool ok_micro_dock_button(int which);
+bool ok_dock_init(OkDockType dock_type);
+bool ok_dock_button(int which);
