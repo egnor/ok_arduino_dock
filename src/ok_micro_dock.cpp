@@ -1,19 +1,24 @@
 #include "ok_micro_dock.h"
 
-#include <array>
-
 #include <Arduino.h>
+#include <array>
 #include <ok_little_layout.h>
 #include <ok_logging.h>
 #include <U8g2lib.h>
 #include <Wire.h>
 
+// No-op layout to allow use without null pointer crash if init fails
+class DummyLayout: public OkLittleLayout {
+ public:
+  virtual void line_printf(int, char const*, ...) {}
+  virtual u8g2_struct* get_u8g2() const { return nullptr; }
+};
+
+OkLittleLayout* ok_dock_layout = new DummyLayout();
+
 static const OkLoggingContext OK_CONTEXT("ok_dock");
-
-U8G2* ok_dock_screen = nullptr;
-OkLittleLayout* ok_dock_layout = nullptr;
-
-static enum { BUTTONS_NONE, BUTTONS_PIx6408 } button_type = BUTTONS_NONE;
+static enum { NO_BUTTONS, BUTTONS_PIx6408 } button_init = NO_BUTTONS;
+static u8g2_t u8g2;
 
 static bool i2c_wr(uint8_t addr, std::initializer_list<int> bytes) {
   Wire.beginTransmission(addr);
@@ -59,7 +64,7 @@ bool ok_dock_init_feather_v8() {
     ) {
       OK_ERROR("Button GPIO setup failed");
     } else {
-      button_type = BUTTONS_PIx6408;
+      button_init = BUTTONS_PIx6408;
     }
   }
 
@@ -74,11 +79,14 @@ bool ok_dock_init_feather_v8() {
   } else {
     // See https://github.com/olikraus/u8g2/issues/2425
     OK_DETAIL("Starting Feather dock screen (I2C 0x%x)...", screen_i2c);
-    ok_dock_screen = new U8G2_SSD1306_64X32_1F_F_HW_I2C(U8G2_R0);
-    ok_dock_screen->setI2CAddress(screen_i2c << 1);
-    ok_dock_screen->initDisplay();
-    ok_dock_screen->setPowerSave(0);
-    ok_dock_layout = new_ok_little_layout(ok_dock_screen->getU8g2());
+    auto const byte_cb = u8x8_byte_arduino_hw_i2c;
+    auto const gpio_cb = u8x8_gpio_and_delay_arduino;
+    u8g2_Setup_ssd1306_64x32_1f_f(&u8g2, U8G2_R2, byte_cb, gpio_cb);
+    u8g2_SetI2CAddress(&u8g2, screen_i2c << 1);
+    u8g2_InitDisplay(&u8g2);
+    u8g2_SetPowerSave(&u8g2, 0);
+    delete ok_dock_layout;
+    ok_dock_layout = new_ok_little_layout(&u8g2);
     ok_dock_layout->line_printf(0, "\f9Starting...");
   }
 
@@ -87,7 +95,7 @@ bool ok_dock_init_feather_v8() {
 }
 
 bool ok_dock_button(int which) {
-  if (button_type == BUTTONS_PIx6408) {
+  if (button_init == BUTTONS_PIx6408) {
     static constexpr int gpio_i2c = 0x43;
     if (which < 0 || which > 2) return false;
     uint8_t const read = i2c_wr_rd(gpio_i2c, {0x0F});
