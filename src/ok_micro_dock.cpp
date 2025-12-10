@@ -18,7 +18,7 @@ OkLittleLayout* ok_dock_layout = new DummyLayout();
 
 static const OkLoggingContext OK_CONTEXT("ok_dock");
 static enum { NO_BUTTONS, BUTTONS_PIx6408 } button_init = NO_BUTTONS;
-static u8g2_t u8g2;
+static U8G2* ok_dock_screen = nullptr;
 
 static bool i2c_wr(uint8_t addr, std::initializer_list<int> bytes) {
   Wire.beginTransmission(addr);
@@ -58,7 +58,7 @@ bool ok_dock_init_feather_v8() {
   ) {
     OK_ERROR("Button GPIO setup failed");
   } else {
-    button_type = BUTTONS_PIx6408;
+    button_init = BUTTONS_PIx6408;
   }
 
   // Feather dock v8+ uses an SSD1306-compatible 64x32 display
@@ -69,6 +69,7 @@ bool ok_dock_init_feather_v8() {
   } else {
     // See https://github.com/olikraus/u8g2/issues/2425
     OK_DETAIL("Feather dock screen (I2C=0x%x) starting...", screen_i2c);
+    delete ok_dock_screen;
     ok_dock_screen = new U8G2_SSD1306_64X32_1F_F_HW_I2C(U8G2_R2);
     ok_dock_screen->setI2CAddress(screen_i2c << 1);
     ok_dock_screen->initDisplay();
